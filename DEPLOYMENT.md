@@ -1,119 +1,68 @@
-# Publish the repository and deploy with Vercel
+# Continue from the existing GitHub commit and deploy on Vercel
 
-This walkthrough publishes the project to your personal GitHub account and connects that repository to Vercel. Keep the repository private while you review it, unless your instructor specifically asks for a public repository.
+The repository is already initialized on the `main` branch and connected to GitHub. **Do not run `git init` again.** This version removes the database: the browser sends its selected file with each question and the Flask function extracts and searches it in memory. No database or Vercel environment variables are required.
 
-## Why the deployment uses PostgreSQL
+## 1. Review and commit this update
 
-The app uses SQLite on your computer. Vercel runs Flask as a serverless Python Function. Its file system is read-only except for temporary `/tmp` storage, so a SQLite database written by the app is not reliable persistent storage there. In production the app reads `DATABASE_URL` and uses PostgreSQL; locally, without that variable, it keeps using SQLite. The code requires both `DATABASE_URL` and `DOCUMENT_QA_SECRET` in Vercel rather than silently starting with temporary storage.
-
-The PostgreSQL database stores extracted passages and table rows, not the original uploaded files. When a user clicks **Clear document**, the associated knowledge-base records are deleted. Vercel and the database provider will still process information needed to run the site, so do not upload private or sensitive documents unless you have permission to store them there.
-
-## Part A — Prepare the project
-
-1. Open the project folder, `document_qa_website`.
-2. Check that it contains `app.py`, `templates/`, `public/`, `requirements.txt`, `README.md`, and this guide.
-3. `.gitignore` excludes `.venv/`, `instance/`, and `.env` files. Do not remove those rules. They prevent local environments, the local SQLite database, and secrets from being uploaded.
-4. Do not put a real database URL or secret in `app.py`, `README.md`, `.env.example`, or any other tracked file. `.env.example` is only a blank template.
-5. The project expects a PostgreSQL connection string in the environment variable named `DATABASE_URL` and a long random session key in `DOCUMENT_QA_SECRET`.
-
-## Part B — Create the GitHub repository
-
-1. Sign in to your personal GitHub account.
-2. Use **New repository** and choose a name such as `document-question-answering-system`.
-3. Choose **Private** to start. You can later add your instructor as a collaborator or change visibility if the course requires it.
-4. Do not select the options to create a README, `.gitignore`, or license on GitHub. The project already has files to push, and initializing the remote with extra files can create an avoidable merge conflict.
-5. Create the empty repository and copy its HTTPS address, which will look like `https://github.com/YOUR-USERNAME/document-question-answering-system.git`.
-
-GitHub's instructions explain how to create a personal repository and advise against initializing it with files when you are pushing an existing local project. [GitHub: Creating a new repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository)
-
-## Part C — Push the local project
-
-Open PowerShell in the project folder. Use the full path below, adjusted only if you moved the folder:
+Open PowerShell in the project folder:
 
 ```powershell
 Set-Location "C:\Users\angel\Documents\Codex\2026-11-25\t\outputs\document_qa_website"
-git init -b main
-git add .
+git status --short --branch
+```
+
+Check the list. It should show the application, browser script, sample TXT, documentation, and dependency changes. It should not show `.venv/`, `instance/`, `.env`, a password, a database URL, or the assignment document. The `.gitignore` file excludes local environments and secret files.
+
+Stage, review, commit, and push to the existing remote:
+
+```powershell
+git add -A
 git status --short
+git commit -m "Make document QA demo stateless"
+git push origin main
 ```
 
-Before committing, inspect the `git status` list. It should include source files and documentation. It must not include `.venv`, `instance`, a `.env` file, passwords, database URLs, or the assignment document. If any of those appear, stop and correct `.gitignore` before continuing.
+If Git reports there is nothing to commit, check the status and confirm that these updated files are already committed. Do not reinitialize the repository or change the existing `origin` remote.
 
-Then make the first commit and connect the empty GitHub repository:
+## 2. Let Vercel deploy from GitHub
 
-```powershell
-git commit -m "Add rule-based document QA website"
-git remote add origin https://github.com/YOUR-USERNAME/document-question-answering-system.git
-git push -u origin main
-```
+If the `Doc-QA-System` repository is already connected to a Vercel project, pushing the `main` commit should start a deployment automatically. Open that project in Vercel and choose **Deployments** to watch the latest build. Vercel creates deployments from pushes to a connected Git repository. [Vercel Git deployments](https://vercel.com/docs/deployments)
 
-Replace `YOUR-USERNAME` and the repository name with the exact values you chose. Git may open a browser sign-in window. Sign in there; do not paste a password or access token into the source code or this chat. If Git says the remote already exists, inspect it with `git remote -v` before changing anything.
+If the repository has not been imported to Vercel yet:
 
-After the push, reload the GitHub repository page and confirm that `app.py`, `templates/`, `public/`, `requirements.txt`, and `README.md` are present. Confirm that `.venv/`, `instance/`, and `.env` are absent.
+1. Sign in to Vercel using the GitHub account that owns the repository.
+2. Choose **Add New → Project** and import `Doc-QA-System`.
+3. Set the root directory to the repository root.
+4. Let Vercel detect the Flask app. The root `app.py` exports a Flask variable named `app`, and dependencies are listed in `requirements.txt`.
+5. Leave Build Command and Output Directory at the detected defaults, then deploy.
 
-## Part D — Create persistent PostgreSQL storage
+Vercel documents Flask deployment from an exported `app` in `app.py`. Static assets belong in `public/`; this project puts `style.css`, `app.js`, and the sample document there. [Vercel Flask guide](https://vercel.com/docs/frameworks/backend/flask)
 
-1. Sign in to Vercel using the same GitHub account that owns the repository.
-2. In Vercel Marketplace, choose a PostgreSQL provider such as Neon and create a database. Vercel's current storage setup uses Marketplace providers for Postgres; the old Vercel Postgres product is no longer the path for a new database.
-3. Choose a region close to the Vercel Function region if the provider asks. Use the provider's pooled/serverless connection string if it offers one.
-4. Copy the database connection string privately. It is a credential. Do not commit it, put it in a README, or share it in a screenshot.
-5. In Vercel Project Settings → Environment Variables, create `DATABASE_URL` with that connection string for **Production**. Add a separate development/preview database URL for Preview deployments if you plan to use preview branches. Do not use production documents for previews.
+## 3. No database or environment variables
 
-Vercel Marketplace integrations can provision Postgres and add credentials as environment variables. Match the variable name to the name the app reads: `DATABASE_URL`. [Vercel: Storage on the Marketplace](https://vercel.com/docs/marketplace-storage), [Vercel: Postgres](https://vercel.com/docs/postgres)
+This version does not use SQLite, Neon, Postgres, `DATABASE_URL`, or `DOCUMENT_QA_SECRET`. It rebuilds the knowledge base for each question from the file sent in that request. If you already created a Neon database while following the earlier guide, this app will not connect to it; you can leave it unused.
 
-## Part E — Add a persistent session secret
+The browser holds the file only while the page remains open and resends it for each question. The Flask function processes each request and does not save the uploaded file or extracted passages. This keeps the demo simple, but the document is transmitted to the deployed site each time. Use only documents you are allowed to send to that service.
 
-Create a random secret locally in PowerShell:
+The upload limit is 4 MiB. Vercel's ordinary Function body limit is 4.5 MB, so the app keeps a margin for multipart request overhead. [Vercel Function limits](https://vercel.com/docs/functions/limitations)
 
-```powershell
-python -c "import secrets; print(secrets.token_hex(32))"
-```
+## 4. Demonstrate the deployed website
 
-Copy the output directly into Vercel Project Settings → Environment Variables as `DOCUMENT_QA_SECRET`. Set it for Production and Preview. Use separate values for those environments if you configure them separately. Do not commit this value. Setting it makes Flask's signed session cookies stable across serverless instances and restarts.
+After the deployment is Ready, open its URL and:
 
-After adding or changing environment variables, create a new deployment so the function receives them.
+1. Click **Use sample TXT document**.
+2. Ask `Who coordinates the campus garden project?` The evidence should include **Asha Rao**.
+3. Ask `Where is the garden located?` The evidence should include **North Courtyard**.
+4. Ask `How much is the project budget?` The evidence should include **2,500 rupees**.
+5. Ask `What is the principal's office phone number?` The app should show that no matching evidence was found.
+6. Select a DOCX of your own, if you want to demonstrate the primary format. The selected file is sent again with every question; refreshing the page clears the browser's selection.
 
-## Part F — Import and deploy the repository
+The sample is `public/sample.txt`; the **Use sample TXT document** button loads it without making the examiner find a separate file.
 
-1. In Vercel, select **Add New → Project**.
-2. Connect GitHub if prompted and grant Vercel access to this repository. For a private personal repository, select the repository owner account and authorize the repo when asked.
-3. Import `document-question-answering-system`.
-4. Set the **Root Directory** to the repository root (`./`).
-5. Let Vercel detect the Flask app. This project exports a Flask `app` from root `app.py` and includes dependencies in `requirements.txt`; leave Build Command and Output Directory at their detected defaults.
-6. Confirm the Production environment has `DATABASE_URL` and `DOCUMENT_QA_SECRET`, then deploy.
-7. Wait for the build to finish, open the generated deployment URL, and try the app.
+## 5. Publish later updates
 
-Vercel documents Flask as a supported Python deployment and detects an exported Flask `app`; its guide says no custom build/output configuration is needed for the basic Flask setup. Python runtime support is currently marked Beta, so check the deployment logs if the platform behavior changes. [Vercel: Flask on Vercel](https://vercel.com/docs/frameworks/backend/flask), [Vercel: Python Runtime](https://vercel.com/docs/functions/runtimes/python)
+After editing the project, repeat the status check, commit, and push steps above. Each push to `main` can create another Production deployment. Check the latest Vercel deployment logs if the build fails.
 
-The stylesheet is in `public/style.css`, because Vercel serves `public/` files as static assets. Locally, Flask serves that same file through the `/style.css` route.
+## Limitations
 
-## Part G — Check the live deployment
-
-Use a document you are allowed to upload. Check all of these manually:
-
-1. The homepage loads with its styling.
-2. Upload a DOCX containing a short paragraph and a simple table.
-3. Ask a question using exact words from the paragraph and check the displayed source.
-4. Ask a question about a table value and check the table row citation.
-5. Ask something not in the document and confirm the system does not invent an answer.
-6. Select **Clear document**, reload the page, and confirm the current session no longer shows the document.
-7. Open the site in another browser/private window and confirm that it has a separate session.
-
-If the deployment fails, open the Vercel project → **Deployments** → the failed deployment → **Build Logs** or **Runtime Logs**. Common causes are a missing `DATABASE_URL`, missing `DOCUMENT_QA_SECRET`, a typo in the environment variable name, or a database connection string copied incorrectly. Do not paste secret values into logs, issue reports, or chat.
-
-## Part H — Make later changes
-
-Edit files locally, then publish each update with:
-
-```powershell
-git add .
-git status --short
-git commit -m "Describe the change"
-git push
-```
-
-Pushing to `main` triggers a new production deployment when the GitHub repository is connected to Vercel. A push to another branch can create a preview deployment. Review the preview URL before merging changes into `main`. [Vercel: Deploying Git repositories](https://vercel.com/docs/deployments)
-
-## What is not included
-
-This project does not include user accounts, shared document libraries, virus scanning, or OCR for image-only files. Uploaded original files are not retained by the app, but extracted text is stored in the configured PostgreSQL database until cleared. The site is a student project; do not treat it as a secure document portal.
+This is a stateless classroom demo. It has no accounts, saved chat history, saved knowledge base, OCR, or shared document library. Because the file is reprocessed for every question, use short documents. Vercel rejects requests above its function body limit.

@@ -5,91 +5,49 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Document Question Answering</title>
   <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
 </head>
 <body>
   <main class="page-shell">
     <header class="hero">
       <p class="eyebrow">Rule-based document assistant</p>
       <h1>Ask a document</h1>
-      <p class="intro">Upload a DOCX document, then ask questions answered only from its extracted passages and tables.</p>
-      <p class="method-note">Uses exact-term search and fixed rules. No NLP libraries, embeddings, language models, or RAG.</p>
+      <p class="intro">Select a DOCX document, then ask questions answered only from passages and tables in that document.</p>
+      <p class="method-note">Uses fixed rules and exact-term search. No NLP libraries, embeddings, language models, or RAG.</p>
     </header>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <section class="messages" aria-live="polite">
-          {% for category, message in messages %}
-            <p class="message {{ category }}">{{ message }}</p>
-          {% endfor %}
-        </section>
-      {% endif %}
-    {% endwith %}
-
     <section class="card upload-card">
-      <div class="section-heading">
-        <div><p class="eyebrow">Step 1</p><h2>Build a knowledge base</h2></div>
-      </div>
-      <p>DOCX is the primary format. TXT and CSV are also supported. Maximum file size: 10 MB.</p>
-      <form action="{{ url_for('index') }}" method="post" enctype="multipart/form-data" class="upload-form">
+      <div class="section-heading"><div><p class="eyebrow">Step 1</p><h2>Select a document</h2></div></div>
+      <p>DOCX is the primary format. TXT and CSV are also supported. Maximum document size: 4 MiB.</p>
+      <div class="upload-form">
         <label for="document">Choose a file</label>
-        <input id="document" name="document" type="file" accept=".docx,.txt,.csv" required>
-        <button type="submit" class="button primary">Upload and process</button>
-      </form>
-      <p class="fine-print">DOCX paragraphs, headings, and tables are extracted. TXT files should be UTF-8. CSV uses the first row as column headings.</p>
+        <input id="document" type="file" accept=".docx,.txt,.csv">
+        <button id="sample-button" class="button secondary" type="button">Use sample TXT document</button>
+        <p id="file-status" class="file-status" aria-live="polite">No document selected.</p>
+      </div>
+      <p class="fine-print">The selected file stays in this browser tab and is sent with each question. The server processes it for that request and does not save it or keep a knowledge base.</p>
     </section>
 
-    {% if document %}
-      <section class="card document-card">
-        <div class="section-heading document-heading">
-          <div><p class="eyebrow">Step 2</p><h2>Document ready</h2></div>
-          <form action="{{ url_for('clear_document') }}" method="post">
-            <button type="submit" class="button secondary">Clear document</button>
-          </form>
-        </div>
-        <dl class="document-meta">
-          <div><dt>File</dt><dd>{{ document.filename }}</dd></div>
-          <div><dt>Type</dt><dd>{{ document.file_type|upper }}</dd></div>
-          <div><dt>Knowledge units</dt><dd>{{ unit_count }}</dd></div>
-        </dl>
-      </section>
+    <section class="card question-card">
+      <div class="section-heading"><div><p class="eyebrow">Step 2</p><h2>Ask a question</h2></div></div>
+      <form id="question-form" class="question-form">
+        <label for="question">Question about the selected document</label>
+        <textarea id="question" name="question" rows="3" maxlength="500" placeholder="For example: Who coordinates the campus garden project?" required></textarea>
+        <button id="ask-button" type="submit" class="button primary">Find evidence</button>
+      </form>
+      <p class="fine-print">Use important names and terms as they appear in the document. Synonyms may not match.</p>
+    </section>
 
-      <section class="card question-card">
-        <div class="section-heading"><div><p class="eyebrow">Step 3</p><h2>Ask a question</h2></div></div>
-        <form action="{{ url_for('ask') }}" method="post" class="question-form">
-          <label for="question">Question about this document</label>
-          <textarea id="question" name="question" rows="3" maxlength="500" placeholder="For example: What is the project deadline?" required>{{ last_question }}</textarea>
-          <button type="submit" class="button primary">Search the knowledge base</button>
-        </form>
-        <p class="fine-print">Use important names and terms as they appear in the document. The search is literal, so synonyms may not match.</p>
-      </section>
+    <section id="answer" class="card answer-card" aria-live="polite" hidden>
+      <p class="eyebrow">Step 3 · Document evidence</p>
+      <h2 id="answer-heading">Results</h2>
+      <p id="answer-summary"></p>
+      <div id="results"></div>
+    </section>
 
-      {% if last_question %}
-        <section class="card answer-card" aria-live="polite">
-          <p class="eyebrow">Step 4 · Evidence-based result</p>
-          <h2>Question</h2>
-          <p class="question-quote">{{ last_question }}</p>
-          {% if results %}
-            {% for result in results %}
-              <article class="evidence {% if loop.first %}best-evidence{% endif %}">
-                <div class="evidence-title"><h3>{% if loop.first %}Best matching passage{% else %}Other matching passage{% endif %}</h3><span>{{ result.kind|title }}</span></div>
-                <blockquote>{{ result.text }}</blockquote>
-                <p class="source">Source: {{ result.source }}</p>
-              </article>
-            {% endfor %}
-            <p class="fine-print">These are matching source passages, not a newly generated or paraphrased answer.</p>
-          {% else %}
-            <p class="no-answer">No sufficiently matching passage was found. Try using a specific name or phrase from the document.</p>
-          {% endif %}
-        </section>
-      {% endif %}
-    {% else %}
-      <section class="card empty-state">
-        <p class="eyebrow">What happens next?</p>
-        <p>The website extracts document passages, stores them in a local SQLite knowledge base, and searches those passages using fixed rules.</p>
-      </section>
-    {% endif %}
-
-    <footer><p>Local demonstration app · Uploaded originals are processed in memory; extracted knowledge is stored locally until cleared.</p></footer>
+    <footer>
+      <p>Stateless demonstration: no database or server-side knowledge-base storage. Questions are answered from the document sent with that request.</p>
+    </footer>
   </main>
 </body>
 </html>

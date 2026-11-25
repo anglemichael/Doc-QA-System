@@ -8,9 +8,9 @@ __pycache__/
 instance/
 .env
 .env.*
-!.env.example
 
 # Deployment and editor state
 .vercel/
+.npm-cache/
 .vscode/
 .idea/
